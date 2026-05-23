@@ -76,17 +76,25 @@ export function defaultPlayerState(playerId, name, character, isHost) {
 // ── Firebase operace ──────────────────────────────────────────────────────────
 
 // Vytvoří novou hru
-export async function createGame(hostId, hostName, character) {
+export async function createGame(hostId, hostName, character, mode = 'coop') {
   const gameId = generateGameId();
   const gameRef = ref(db, `games/${gameId}`);
   const state   = defaultGameState(gameId, hostId);
-  const player  = defaultPlayerState(hostId, hostName, character, true);
+  state.mode    = mode;
 
-  await set(gameRef, {
-    ...state,
-    players: { [hostId]: player },
-  });
+  const gameData = { ...state };
 
+  // Pokud hostitel nemá postavu (je to jen hrací deska), nehráčský host
+  if (character) {
+    const player = defaultPlayerState(hostId, hostName, character, true);
+    gameData.players = { [hostId]: player };
+  } else {
+    // Board-only host — přidáme jen prázdný záznam
+    gameData.players = {};
+    gameData.boardHostId = hostId;
+  }
+
+  await set(gameRef, gameData);
   return gameId;
 }
 
@@ -117,7 +125,8 @@ export async function setPlayerReady(gameId, playerId, ready = true) {
 export async function startGame(gameId, mode) {
   const snap    = await get(ref(db, `games/${gameId}/players`));
   const players = snap.val() || {};
-  const ids     = Object.keys(players);
+  const ids     = Object.keys(players).filter(id => players[id]?.character); // jen hráči s postavou
+  if (ids.length === 0) return;
   const firstId = ids[Math.floor(Math.random() * ids.length)];
 
   await update(ref(db, `games/${gameId}`), {
@@ -158,7 +167,10 @@ export async function setPhase(gameId, phase) {
 export async function nextTurn(gameId) {
   const snap    = await get(ref(db, `games/${gameId}`));
   const game    = snap.val();
-  const players = Object.keys(game.players || {});
+  // Jen hráči s postavou (ne board-only host)
+  const allPlayers = game.players || {};
+  const players = Object.keys(allPlayers).filter(id => allPlayers[id]?.character);
+  if (players.length === 0) return;
   const idx     = players.indexOf(game.currentPlayerId);
   const nextIdx = (idx + 1) % players.length;
 
@@ -218,4 +230,33 @@ export function listenPlayer(gameId, playerId, callback) {
 // Nastaví připojení hráče
 export async function setConnected(gameId, playerId, connected) {
   await update(ref(db, `games/${gameId}/players/${playerId}`), { connected });
+}
+
+// ── Soubojový stav (pro synchronizaci telefonu) ───────────────────────────────
+
+// Uloží stav souboje do Firebase — vidí ho všichni hráči
+export async function setCombatState(gameId, combatData) {
+  await set(ref(db, `games/${gameId}/combat`), combatData
+    ? { ...combatData, updatedAt: Date.now() }
+    : null);
+}
+
+// Vymaže stav souboje
+export async function clearCombatState(gameId) {
+  await set(ref(db, `games/${gameId}/combat`), null);
+}
+
+// Naslouchá stavu souboje
+export function listenCombat(gameId, callback) {
+  const r = ref(db, `games/${gameId}/combat`);
+  onValue(r, snap => callback(snap.val()));
+  return () => off(r);
+}
+
+// Nastaví pozici hráče na start zóny (po smrti)
+export async function respawnPlayer(gameId, playerId, zone = 1) {
+  await update(ref(db, `games/${gameId}/players/${playerId}`), {
+    position: 0,
+    zone,
+  });
 }
