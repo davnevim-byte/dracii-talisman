@@ -1,244 +1,204 @@
 // src/components/GameMap.jsx
-// Vizuální mapa světa pro hrací desku
-
 import { ZONES, ZONE_LOCATIONS, WEATHER, TIME_OF_DAY, getTimeOfDay } from '../data/mapData';
 
+const ZONE_COLORS = {
+  1: { main:'#4caf50', bg:'#0d1a0d', border:'#1e3a1e', text:'#4caf50' },
+  2: { main:'#c0932a', bg:'#1a1408', border:'#3a2808', text:'#c0932a' },
+  3: { main:'#e07030', bg:'#1a0e08', border:'#3a2010', text:'#e07030' },
+  4: { main:'#9b59b6', bg:'#12080f', border:'#2a1030', text:'#9b59b6' },
+  5: { main:'#e05050', bg:'#1a0808', border:'#3a1010', text:'#e05050' },
+};
+
+const TYPE_CONFIG = {
+  safe:      { icon:'🟢', bg:'#0d1a0d', border:'#1e3a1e' },
+  dangerous: { icon:'🔴', bg:'#1a0d0d', border:'#3a1010' },
+  inn:       { icon:'🍺', bg:'#1a1408', border:'#3a2808' },
+  temple:    { icon:'⛪', bg:'#0d0d1a', border:'#10103a' },
+  smithy:    { icon:'⚒️', bg:'#0f0d08', border:'#302808' },
+  shop:      { icon:'🛒', bg:'#10081a', border:'#28103a' },
+  special:   { icon:'✨', bg:'#08100f', border:'#10302a' },
+};
+
 const S = {
-  wrap: {
-    width: '100%',
-    fontFamily: "'Crimson Text', Georgia, serif",
+  wrap: { width:'100%', fontFamily:"'Crimson Text',Georgia,serif" },
+  worldBar: {
+    display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap',
+    marginBottom:'14px', padding:'12px 16px',
+    background:'#16140e', border:'1px solid #2a2418', borderRadius:'12px',
   },
-  worldHeader: {
-    display: 'flex', alignItems: 'center', gap: '16px',
-    marginBottom: '14px', flexWrap: 'wrap',
-  },
-  worldTitle: {
-    fontFamily: "'Cinzel', serif", fontSize: '13px', fontWeight: 700,
-    color: '#7a6a4a', letterSpacing: '3px', textTransform: 'uppercase',
-  },
-  weatherChip: (color) => ({
-    display: 'flex', alignItems: 'center', gap: '6px',
-    background: `${color}15`, border: `1px solid ${color}40`,
-    borderRadius: '20px', padding: '4px 12px', fontSize: '13px', color,
+  weatherPill: (color) => ({
+    display:'flex', alignItems:'center', gap:'6px',
+    background:`${color}15`, border:`1px solid ${color}50`,
+    borderRadius:'20px', padding:'5px 14px', fontSize:'13px', color,
+    fontFamily:"'Cinzel',serif", fontWeight:600,
   }),
-  timeChip: (color) => ({
-    display: 'flex', alignItems: 'center', gap: '6px',
-    background: `${color}15`, border: `1px solid ${color}40`,
-    borderRadius: '20px', padding: '4px 12px', fontSize: '13px', color,
-  }),
-  zoneRow: (color, isActive) => ({
-    background: isActive ? `${color}08` : '#0f0e0b',
-    border: `1px solid ${isActive ? color + '40' : '#1a1710'}`,
-    borderRadius: '14px', padding: '12px 14px', marginBottom: '10px',
-    transition: 'all 0.3s',
+  zoneWrap: (zNum) => ({
+    background: ZONE_COLORS[zNum]?.bg || '#0d0b07',
+    border:`2px solid ${ZONE_COLORS[zNum]?.border || '#1a1710'}`,
+    borderRadius:'14px', padding:'14px', marginBottom:'12px',
+    transition:'all 0.3s',
   }),
   zoneHeader: {
-    display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px',
+    display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px',
   },
-  zoneTitle: (color) => ({
-    fontFamily: "'Cinzel', serif", fontSize: '13px', fontWeight: 700, color,
-    flex: 1,
+  zoneTitle: (zNum) => ({
+    fontFamily:"'Cinzel',serif", fontSize:'14px', fontWeight:700,
+    color: ZONE_COLORS[zNum]?.main || '#c0932a', flex:1,
   }),
-  difficulty: { fontSize: '12px', color: '#5a4a2a' },
-  locGrid: {
-    display: 'flex', flexWrap: 'wrap', gap: '6px',
+  tilesGrid: {
+    display:'grid',
+    gridTemplateColumns:'repeat(auto-fill, minmax(90px, 1fr))',
+    gap:'8px',
   },
-  locTile: (type, hasPlayers, isLocked) => {
-    const typeColors = {
-      safe:      { bg: '#0d150d', border: '#1e3a1e', text: '#4a8a4a' },
-      dangerous: { bg: '#150d0d', border: '#3a1e1e', text: '#8a4a4a' },
-      inn:       { bg: '#15130a', border: '#3a3010', text: '#a09030' },
-      temple:    { bg: '#0d0d18', border: '#1e1e40', text: '#6060c0' },
-      smithy:    { bg: '#130f0a', border: '#3a2a10', text: '#9a7030' },
-      shop:      { bg: '#130d15', border: '#351a35', text: '#9050a0' },
-      special:   { bg: '#0d1215', border: '#1a3040', text: '#4080a0' },
-    };
-    const c = typeColors[type] || typeColors.safe;
+  tile: (type, hasPlayers, locked) => {
+    const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.safe;
     return {
-      background: hasPlayers ? '#252010' : isLocked ? '#0a0908' : c.bg,
-      border: `1px solid ${hasPlayers ? '#c0932a80' : isLocked ? '#141210' : c.border}`,
-      borderRadius: '8px', padding: '7px 8px', minWidth: '74px',
-      textAlign: 'center', fontSize: '11px',
-      color: hasPlayers ? '#c0932a' : isLocked ? '#2a2520' : c.text,
-      opacity: isLocked ? 0.5 : 1,
-      boxShadow: hasPlayers ? '0 0 10px #c0932a25' : 'none',
-      transition: 'all 0.2s', cursor: 'default', position: 'relative',
+      background: hasPlayers ? '#252010' : locked ? '#080706' : cfg.bg,
+      border:`2px solid ${hasPlayers ? '#c0932a80' : locked ? '#141210' : cfg.border}`,
+      borderRadius:'10px', padding:'10px 6px', textAlign:'center',
+      cursor:'default', minHeight:'80px',
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+      gap:'3px',
+      boxShadow: hasPlayers ? '0 0 16px #c0932a30' : 'none',
+      opacity: locked ? 0.4 : 1,
+      transition:'all 0.2s',
+      position:'relative',
     };
   },
+  tileEmoji: { fontSize:'22px' },
+  tileName: (hasPlayers, type) => ({
+    fontSize:'10px', lineHeight:1.2, color: hasPlayers ? '#c0932a' :
+      (TYPE_CONFIG[type]?.border ? '#7a6a4a' : '#5a4a2a'),
+    fontWeight: hasPlayers ? 700 : 'normal',
+  }),
+  tileType: { fontSize:'9px', color:'#3a3020', marginTop:'1px' },
   playerAvatars: {
-    display: 'flex', justifyContent: 'center',
-    gap: '1px', marginTop: '3px', flexWrap: 'wrap',
+    display:'flex', gap:'1px', flexWrap:'wrap',
+    justifyContent:'center', marginTop:'3px',
   },
-  zoneLockedOverlay: {
-    display: 'flex', alignItems: 'center', gap: '6px',
-    fontSize: '11px', color: '#3a3020', fontStyle: 'italic', marginTop: '6px',
-    padding: '6px 10px', background: '#0d0b07', borderRadius: '6px',
-  },
-  legendWrap: {
-    display: 'flex', flexWrap: 'wrap', gap: '8px',
-    marginBottom: '14px',
+  playerAvatar: (isActive) => ({
+    fontSize:'14px',
+    filter: isActive ? 'drop-shadow(0 0 5px #c0932a)' : 'none',
+  }),
+  legend: {
+    display:'flex', flexWrap:'wrap', gap:'8px',
+    marginBottom:'12px',
   },
   legendItem: (color) => ({
-    display: 'flex', alignItems: 'center', gap: '5px',
-    fontSize: '11px', color, opacity: 0.8,
+    display:'flex', alignItems:'center', gap:'4px',
+    fontSize:'11px', color, fontFamily:"'Cinzel',serif",
   }),
   weatherEffect: {
-    fontSize: '11px', color: '#7a6a4a', fontStyle: 'italic',
-    padding: '6px 10px', background: '#0d0b07', borderRadius: '6px',
-    marginBottom: '10px',
+    fontSize:'12px', color:'#7a6a4a', fontStyle:'italic',
+    padding:'8px 12px', background:'#0d0b07', borderRadius:'8px',
+    marginBottom:'10px', border:'1px solid #1e1a12',
   },
 };
 
 function typeLabel(type) {
-  return { safe:'🟢 Bezp.', dangerous:'🔴 Nebez.', inn:'🍺 Hospoda',
-    temple:'⛪ Chrám', smithy:'⚒️ Kovárna', shop:'🛒 Obchod', special:'✨ Spec.' }[type] || type;
+  return {
+    safe:'Bezpečné', dangerous:'Nebez.', inn:'Hospoda',
+    temple:'Chrám', smithy:'Kovárna', shop:'Obchod', special:'Spec.',
+  }[type] || type;
 }
 
 export default function GameMap({ game }) {
-  const players    = Object.values(game?.players || {});
+  const players    = Object.values(game?.players || {}).filter(p => p.character);
   const weather    = WEATHER[game?.weather || 'sunny'];
   const timeObj    = getTimeOfDay(game?.hourOfDay || 8);
   const currentPId = game?.currentPlayerId;
-  const globalTurn = game?.turn || 1;
+  const maxZone    = Math.max(1, ...players.map(p => p.zone || 1));
 
-  // Zjisti max zónu jakéhokoli hráče (pro zobrazení odemčených zón)
-  const maxPlayerZone = Math.max(1, ...players.map(p => p.zone || 1));
+  const hasWeatherEffect = weather.effects.move !== 0 || weather.effects.strMod !== 0 ||
+                           weather.effects.coldDmg || weather.effects.hideCards;
+  const hasTimeEffect = timeObj.effects.enemyStr !== 0 || timeObj.effects.move !== 0;
 
   return (
     <div style={S.wrap}>
-      {/* Hlavička — počasí + čas */}
-      <div style={S.worldHeader}>
-        <div style={S.worldTitle}>Mapa světa</div>
-
-        <div style={S.weatherChip(weather.color)}>
-          <span>{weather.emoji}</span>
-          <span>{weather.name}</span>
-        </div>
-
-        <div style={S.timeChip(timeObj.color)}>
-          <span>{timeObj.emoji}</span>
-          <span>{timeObj.name}</span>
-          <span style={{ opacity:0.6 }}>({game?.hourOfDay || 8}:00)</span>
-        </div>
-
-        <div style={{ fontSize:'12px', color:'#5a4a2a' }}>
-          Tah {globalTurn}
-        </div>
+      {/* Stavový bar */}
+      <div style={S.worldBar}>
+        <div style={{ fontFamily:"'Cinzel',serif", fontSize:'11px', color:'#5a4a2a',
+                       letterSpacing:'2px', textTransform:'uppercase' }}>Svět</div>
+        <div style={{ flex:1 }} />
+        <div style={S.weatherPill(weather.color)}>{weather.emoji} {weather.name}</div>
+        <div style={S.weatherPill(timeObj.color)}>{timeObj.emoji} {timeObj.name} · {game?.hourOfDay||8}:00</div>
+        <div style={{ fontSize:'12px', color:'#5a4a2a' }}>Tah {game?.turn||1}</div>
       </div>
 
-      {/* Efekty počasí */}
-      {(weather.effects.move !== 0 || weather.effects.strMod !== 0 ||
-        weather.effects.coldDmg || weather.effects.hideCards) && (
+      {/* Efekty */}
+      {(hasWeatherEffect || hasTimeEffect) && (
         <div style={S.weatherEffect}>
-          ⚠️ {weather.desc}
-          {weather.effects.move   !== 0 && ` · Pohyb ${weather.effects.move > 0 ? '+' : ''}${weather.effects.move}`}
-          {weather.effects.strMod !== 0 && ` · Síla ${weather.effects.strMod > 0 ? '+' : ''}${weather.effects.strMod}`}
-          {weather.effects.coldDmg && ` · Chlad -${weather.effects.coldDmg} ŽP/tah`}
-          {weather.effects.hideCards && ' · Karty skryté'}
-        </div>
-      )}
-
-      {/* Efekty denní doby */}
-      {(timeObj.effects.enemyStr !== 0 || timeObj.effects.move !== 0) && (
-        <div style={{ ...S.weatherEffect, borderColor: timeObj.color + '30', color: timeObj.color }}>
-          {timeObj.emoji} {timeObj.desc}
-          {timeObj.effects.enemyStr !== 0 && ` · Příšery ${timeObj.effects.enemyStr > 0 ? '+' : ''}${timeObj.effects.enemyStr} Síla`}
-          {timeObj.effects.move     !== 0 && ` · Pohyb ${timeObj.effects.move > 0 ? '+' : ''}${timeObj.effects.move}`}
+          {hasWeatherEffect && <span>{weather.emoji} {weather.desc} </span>}
+          {weather.effects.move !== 0 && <span>· Pohyb {weather.effects.move>0?'+':''}{weather.effects.move} </span>}
+          {hasTimeEffect && <span>· {timeObj.emoji} Příšery {timeObj.effects.enemyStr>0?'+':''}{timeObj.effects.enemyStr} Síla</span>}
         </div>
       )}
 
       {/* Legenda */}
-      <div style={S.legendWrap}>
-        {[
-          ['🟢','#4a8a4a','Bezpečné'],
-          ['🔴','#8a4a4a','Nebezpečné'],
-          ['🍺','#a09030','Hospoda'],
-          ['⛪','#6060c0','Chrám'],
-          ['⚒️','#9a7030','Kovárna'],
-          ['🛒','#9050a0','Obchod'],
-          ['✨','#4080a0','Speciální'],
-        ].map(([e,c,l]) => (
-          <div key={l} style={S.legendItem(c)}>{e} {l}</div>
+      <div style={S.legend}>
+        {Object.entries(TYPE_CONFIG).map(([type, cfg]) => (
+          <div key={type} style={S.legendItem('#7a6a4a')}>
+            <span>{cfg.icon}</span>
+            <span>{typeLabel(type)}</span>
+          </div>
         ))}
       </div>
 
       {/* Zóny */}
-      {Object.entries(ZONES).map(([zoneId, zone]) => {
-        const zNum     = parseInt(zoneId);
-        const locs     = ZONE_LOCATIONS[zNum] || [];
-        const isActive = zNum <= maxPlayerZone + 1; // vidíme i příští zónu
-        const isLocked = zNum > maxPlayerZone + 1;
-
-        // Hráči v této zóně
-        const zonePlayers = players.filter(p => (p.zone || 1) === zNum);
+      {Object.entries(ZONES).map(([zId, zone]) => {
+        const zNum      = parseInt(zId);
+        const locs      = ZONE_LOCATIONS[zNum] || [];
+        const zonePlayers = players.filter(p => (p.zone||1) === zNum);
+        const locked    = zNum > maxZone + 1;
+        const colors    = ZONE_COLORS[zNum];
 
         return (
-          <div key={zoneId} style={S.zoneRow(zone.color, zonePlayers.length > 0)}>
+          <div key={zId} style={S.zoneWrap(zNum)}>
             <div style={S.zoneHeader}>
-              <span style={{ fontSize:'20px' }}>{zone.emoji}</span>
+              <span style={{ fontSize:'22px' }}>{zone.emoji}</span>
               <div style={{ flex:1 }}>
-                <div style={S.zoneTitle(zone.color)}>
-                  Zóna {zoneId} — {zone.name}
+                <div style={S.zoneTitle(zNum)}>
+                  Zóna {zId} — {zone.name}
+                  {locked && <span style={{ fontSize:'14px', marginLeft:'8px', opacity:0.5 }}>🔒</span>}
                 </div>
-                <div style={S.difficulty}>
+                <div style={{ fontSize:'11px', color:'#5a4a2a' }}>
                   {'⭐'.repeat(zone.difficulty)}
                   {zonePlayers.length > 0 && (
-                    <span style={{ marginLeft:'8px', color:'#c0932a' }}>
-                      · {zonePlayers.map(p => p.character?.emoji).join('')} zde
+                    <span style={{ marginLeft:'8px', color:colors?.main }}>
+                      {zonePlayers.map(p => p.character?.emoji).join('')} zde
                     </span>
                   )}
                 </div>
               </div>
-              {isLocked && <span style={{ fontSize:'16px', opacity:0.4 }}>🔒</span>}
             </div>
 
-            {/* Lokace */}
-            <div style={S.locGrid}>
+            <div style={S.tilesGrid}>
               {locs.map((loc, locIdx) => {
                 const herePlayers = players.filter(
                   p => (p.zone||1) === zNum && p.position === locIdx
                 );
-                const isCurrentTurn = herePlayers.some(p => p.id === currentPId);
+                const isActive = herePlayers.length > 0;
 
                 return (
-                  <div key={loc.id} style={S.locTile(loc.type, herePlayers.length > 0, isLocked)}
-                       title={loc.desc}>
-                    <div style={{ fontSize:'16px' }}>{loc.emoji}</div>
-                    <div style={{ marginTop:'2px', lineHeight:'1.2', fontSize:'10px' }}>
-                      {loc.name}
-                    </div>
-                    <div style={{ fontSize:'9px', opacity:0.7, marginTop:'1px' }}>
-                      {typeLabel(loc.type)}
-                    </div>
+                  <div key={loc.id} style={S.tile(loc.type, isActive, locked)}
+                       title={`${loc.name} — ${loc.desc}`}>
+                    <div style={S.tileEmoji}>{loc.emoji}</div>
+                    <div style={S.tileName(isActive, loc.type)}>{loc.name}</div>
+                    <div style={S.tileType}>{TYPE_CONFIG[loc.type]?.icon} {typeLabel(loc.type)}</div>
 
-                    {herePlayers.length > 0 && (
+                    {isActive && (
                       <div style={S.playerAvatars}>
                         {herePlayers.map(p => (
-                          <span key={p.id} style={{ fontSize:'14px',
-                            filter: p.id === currentPId ? 'drop-shadow(0 0 4px #c0932a)' : 'none' }}>
+                          <span key={p.id} style={S.playerAvatar(p.id === currentPId)}>
                             {p.character?.emoji || '👤'}
                           </span>
                         ))}
                       </div>
                     )}
-
-                    {/* Speciální ikony míst */}
-                    {loc.type === 'inn'    && <div style={{ fontSize:'9px', color:'#a09030', marginTop:'1px' }}>Léčení</div>}
-                    {loc.type === 'temple' && <div style={{ fontSize:'9px', color:'#6060c0', marginTop:'1px' }}>Požehnání</div>}
-                    {loc.type === 'smithy' && <div style={{ fontSize:'9px', color:'#9a7030', marginTop:'1px' }}>Upgrade</div>}
                   </div>
                 );
               })}
             </div>
-
-            {/* Požadavek pro vstup */}
-            {zNum > 1 && (
-              <div style={S.zoneLockedOverlay}>
-                {isLocked
-                  ? `🔒 Podmínky vstupu — přijde ve Fázi 3`
-                  : `✅ Zóna přístupná`}
-              </div>
-            )}
           </div>
         );
       })}
