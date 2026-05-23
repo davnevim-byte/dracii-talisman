@@ -5,6 +5,8 @@ import GameChat           from '../components/GameChat';
 import SettingsPanel      from '../components/SettingsPanel';
 import TutorialHints      from '../components/TutorialHints';
 import AchievementsScreen, { AchievementToast, useAchievementToasts } from '../components/AchievementToast';
+import DiceRoller         from '../components/DiceRoller';
+import PhoneCombat        from '../components/PhoneCombat';
 import { listenGame, listenPlayer, updatePlayerStats, addLog } from '../game/gameState';
 import { useNarratorReader } from '../game/useNarrator';
 import NarratorBox        from '../components/NarratorBox';
@@ -190,10 +192,24 @@ export default function PhoneCard({ session }) {
                 <div style={{ fontSize:'12px', color:'#9a8a6a', marginTop:'4px' }}>Klepni pro výběr cesty</div>
               </div>
             )}
+            {/* SOUBOJ — zobrazí se automaticky když probíhá */}
+            <PhoneCombat
+              gameId={gameId}
+              playerId={playerId}
+              player={player}
+              diceMode={settings?.diceMode || 'virtual'}
+            />
+
             {isMyTurn && (
-              <div style={S.turnBanner}>
-                <div style={{ fontFamily:"'Cinzel',serif", color:'#c0932a', fontSize:'14px', fontWeight:700, marginBottom:'3px' }}>⚡ Je tvůj tah!</div>
-                <div style={{ fontSize:'13px', color:'#9a8a6a' }}>Fáze: <strong style={{ color:'#e0d5c0' }}>{PHASES[game.phase]||game.phase}</strong></div>
+              <div style={{ ...S.turnBanner, padding:'0' }}>
+                {/* Hlavička tahu */}
+                <div style={{ padding:'14px 14px 10px', borderBottom: game.phase === 'roll' ? '1px solid #2a2010' : 'none' }}>
+                  <div style={{ fontFamily:"'Cinzel',serif", color:'#c0932a', fontSize:'14px', fontWeight:700, marginBottom:'3px' }}>⚡ Je tvůj tah!</div>
+                  <div style={{ fontSize:'13px', color:'#9a8a6a' }}>Fáze: <strong style={{ color:'#e0d5c0' }}>{PHASES[game.phase]||game.phase}</strong></div>
+                </div>
+
+                {/* KOSTKA — jen ve fázi roll */}
+                {game.phase === 'roll' && <DiceRoller gameId={gameId} playerId={playerId} player={player} game={game} settings={settings} />}
               </div>
             )}
             {/* Životy + mana */}
