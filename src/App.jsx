@@ -18,29 +18,33 @@ function getJoinCodeFromUrl() {
 
 export default function App() {
   const [session,  setSession]  = useState(null);
-  const [screen,   setScreen]   = useState('lobby');  // lobby|waiting|game|end
+  const [screen,   setScreen]   = useState('lobby');
   const [gameData, setGameData] = useState(null);
   const [endData,  setEndData]  = useState(null);
-  const isBoard = isTabletOrPC();
 
-  // Auto-join z QR kódu
+  // Zjisti typ zařízení — ale nech session přepsat isBoard
+  const deviceIsBoard = window.innerWidth >= 768;
+
+  // Auto-join z QR kódu — přesměruj na telefon view
   useEffect(() => {
     const joinCode = getJoinCodeFromUrl();
-    if (joinCode) window._autoJoinCode = joinCode;
+    if (joinCode) {
+      window._autoJoinCode = joinCode;
+    }
   }, []);
 
-  // Sledování stavu hry pro detekci konce
+  // Sledování konce hry
   useEffect(() => {
     if (!session || screen !== 'game') return;
     const unsub = listenGame(session.gameId, (game) => {
       if (!game) return;
       if (game.status === 'finished') {
-        const players = Object.values(game.players || {});
+        const players = Object.values(game.players || {}).filter(p => p.character);
         setEndData({
           outcome: game.outcome || 'defeat',
           players,
-          turns:   game.turn   || 0,
-          mode:    game.mode   || 'coop',
+          turns:   game.turn || 0,
+          mode:    game.mode || 'coop',
         });
         setScreen('end');
       }
@@ -51,12 +55,17 @@ export default function App() {
   // Odpojení při zavření
   useEffect(() => {
     if (!session) return;
-    const handleUnload = () => setConnected(session.gameId, session.playerId, false);
+    const handleUnload = () => {
+      if (!session.isBoard) {
+        setConnected(session.gameId, session.playerId, false);
+      }
+    };
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, [session]);
 
   const handleGameJoined = (sess) => {
+    // sess.isBoard přichází z LobbyScreen
     setSession(sess);
     setScreen('waiting');
   };
@@ -75,9 +84,18 @@ export default function App() {
 
   // ── Routing ──────────────────────────────────────────────────────────────
 
-  if (screen === 'lobby') return (
-    <LobbyScreen onGameJoined={handleGameJoined} isBoard={isBoard} />
-  );
+  // Lobby — isBoard podle zařízení NEBO pokud je v URL ?join= tak vždy telefon
+  if (screen === 'lobby') {
+    const joinCode  = getJoinCodeFromUrl();
+    const showBoard = !joinCode && deviceIsBoard;
+    return (
+      <LobbyScreen
+        onGameJoined={handleGameJoined}
+        isBoard={showBoard}
+        autoJoinCode={joinCode}
+      />
+    );
+  }
 
   if (screen === 'waiting' && session) return (
     <WaitingRoom session={session} onGameStart={handleGameStart} />
@@ -94,7 +112,10 @@ export default function App() {
   );
 
   if (screen === 'game' && session) {
-    return isBoard
+    // isBoard z session — ne ze zařízení
+    // (umožní testování na PC jako hráč přes ?join=)
+    const showBoard = session.isBoard;
+    return showBoard
       ? <BoardScreen session={session} />
       : <PhoneCard   session={session} />;
   }
