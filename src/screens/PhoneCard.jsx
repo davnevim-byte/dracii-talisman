@@ -15,7 +15,6 @@ import { getReputationLabel, computeEffectiveStats } from '../game/progression';
 import UpgradeScreen      from './UpgradeScreen';
 import { play }           from '../game/soundEngine';
 import { useSettings }    from '../components/SettingsPanel';
-import { checkAchievements, buildAchievStats, getAchievement } from '../game/achievements';
 import { ref, set, update } from 'firebase/database';
 import { db } from '../firebase';
 
@@ -69,7 +68,7 @@ export default function PhoneCard({ session }) {
   const [showAchs,    setShowAchs]    = useState(false);
   const { text: narratorText, history: narratorHistory } = useNarratorReader(gameId);
   const { settings, update: updateSetting } = useSettings();
-  const { toasts, showAchievement } = useAchievementToasts();
+  const { toasts } = useAchievementToasts();
   const prevStatsRef = useRef(null);
 
   useEffect(() => {
