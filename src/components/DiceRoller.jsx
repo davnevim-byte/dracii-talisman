@@ -2,13 +2,9 @@
 // Kostka na telefonu hráče — virtuální nebo fyzická
 
 import { useState } from 'react';
-import { updatePlayerPosition, addLog, setPhase, updatePlayerStats } from '../game/gameState';
+import { updatePlayerPosition, addLog, setPhase } from '../game/gameState';
 import { ZONE_LOCATIONS } from '../data/mapData';
 import { getEffectiveMove } from '../game/worldManager';
-import { addItemToInventory } from '../game/gameState';
-import { drawCard } from '../game/worldData';
-import { getRandomEnemy } from '../data/bestiary';
-import { getEnemyStrBonus } from '../game/worldManager';
 import { play } from '../game/soundEngine';
 
 const S = {
